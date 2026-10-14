@@ -1,0 +1,37 @@
+name: Trivy Analysis
+
+on:
+  push:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  trivy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v6
+      - name: Run Trivy vulnerability scanner
+        # v0.35.0
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
+        with:
+          format: sarif
+          output: trivy-results.sarif
+          scan-type: config
+          trivy-config: trivy.yaml
+      - name: Parse SARIF file for annotations
+        if: always()
+        uses: jontyms/sarif-annotations@v0.0.3
+        with:
+          annotation-level: notice
+          sarif-file: trivy-results.sarif
+      - name: Upload SARIF result
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-results.sarif
