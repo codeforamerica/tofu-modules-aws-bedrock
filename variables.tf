@@ -55,6 +55,15 @@ variable "project" {
   description = "Project that these resources are supporting."
 }
 
+variable "role_names" {
+  type        = list(string)
+  description = <<-EOT
+    Names of existing IAM roles to attach the policy to, such as an ECS task
+    role. Names must be known at plan time.
+    EOT
+  default     = []
+}
+
 variable "service" {
   type        = string
   description = "Optional service that these resources are supporting."
@@ -65,4 +74,14 @@ variable "tags" {
   type        = map(string)
   description = "Tags to apply to all resources."
   default     = {}
+}
+
+variable "user_names" {
+  type        = list(string)
+  description = <<-EOT
+    Names of existing IAM users to attach the policy to, such as the user whose
+    access keys an application hosted outside AWS uses. Names must be known at
+    plan time.
+    EOT
+  default     = []
 }
