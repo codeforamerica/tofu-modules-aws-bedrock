@@ -7,6 +7,28 @@ variable "allow_streaming" {
   default     = false
 }
 
+variable "create_vpc_endpoint" {
+  type        = bool
+  description = <<-EOT
+    Create a Bedrock Runtime interface VPC endpoint, limited to the declared
+    models and to endpoint_principal_arns. Requires vpc_id, subnet_ids,
+    endpoint_allowed_security_group_ids, and endpoint_principal_arns.
+    EOT
+  default     = false
+}
+
+variable "endpoint_allowed_security_group_ids" {
+  type        = list(string)
+  description = "Security groups allowed to reach the VPC endpoint over HTTPS, such as an ECS task's security group."
+  default     = []
+}
+
+variable "endpoint_principal_arns" {
+  type        = list(string)
+  description = "ARNs of the IAM principals allowed to use the VPC endpoint, such as an ECS task role."
+  default     = []
+}
+
 variable "environment" {
   type        = string
   description = "Environment for the deployment."
@@ -70,6 +92,12 @@ variable "service" {
   default     = null
 }
 
+variable "subnet_ids" {
+  type        = list(string)
+  description = "Subnets to place the VPC endpoint in, typically the private subnets of the workloads that use it."
+  default     = []
+}
+
 variable "tags" {
   type        = map(string)
   description = "Tags to apply to all resources."
@@ -84,4 +112,10 @@ variable "user_names" {
     plan time.
     EOT
   default     = []
+}
+
+variable "vpc_id" {
+  type        = string
+  description = "VPC to create the VPC endpoint in."
+  default     = null
 }

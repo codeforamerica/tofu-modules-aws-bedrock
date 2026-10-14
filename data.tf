@@ -17,42 +17,65 @@ data "aws_bedrock_inference_profile" "this" {
   inference_profile_id = each.value
 }
 
-# Grants the inference profiles and in-region foundation models directly, and
-# each profile's foundation models only when invoked through that profile.
-data "aws_iam_policy_document" "invoke" {
-  dynamic "statement" {
-    for_each = length(local.foundation_model_arns) > 0 ? ["this"] : []
-
-    content {
-      sid       = "InvokeFoundationModels"
-      actions   = local.actions
-      resources = values(local.foundation_model_arns)
-    }
-  }
+# Limits the Bedrock Runtime endpoint to the IAM policy's statements, for the
+# given principals only. Principals are matched by ARN in a condition: a named
+# role principal is stored as the role's unique ID, so recreating the role
+# would silently lock it out while the policy text stayed unchanged.
+data "aws_iam_policy_document" "endpoint" {
+  for_each = var.create_vpc_endpoint ? toset(["this"]) : toset([])
 
   dynamic "statement" {
-    for_each = length(local.inference_profile_arns) > 0 ? ["this"] : []
+    for_each = local.policy_statements
 
     content {
-      sid       = "InvokeInferenceProfiles"
+      sid       = statement.value.sid
       actions   = local.actions
-      resources = values(local.inference_profile_arns)
-    }
-  }
+      resources = statement.value.resources
 
-  dynamic "statement" {
-    for_each = local.inference_profile_model_arns
-
-    content {
-      sid       = "InvokeModelsVia${replace(statement.key, "/[^0-9A-Za-z]/", "")}"
-      actions   = local.actions
-      resources = statement.value
+      principals {
+        type        = "*"
+        identifiers = ["*"]
+      }
 
       condition {
         test     = "StringEquals"
-        variable = "bedrock:InferenceProfileArn"
-        values   = [local.inference_profile_arns[statement.key]]
+        variable = "aws:PrincipalArn"
+        values   = var.endpoint_principal_arns
+      }
+
+      dynamic "condition" {
+        for_each = statement.value.inference_profile_arn != null ? [statement.value.inference_profile_arn] : []
+
+        content {
+          test     = "StringEquals"
+          variable = "bedrock:InferenceProfileArn"
+          values   = [condition.value]
+        }
       }
     }
   }
 }
+
+data "aws_iam_policy_document" "invoke" {
+  dynamic "statement" {
+    for_each = local.policy_statements
+
+    content {
+      sid       = statement.value.sid
+      actions   = local.actions
+      resources = statement.value.resources
+
+      dynamic "condition" {
+        for_each = statement.value.inference_profile_arn != null ? [statement.value.inference_profile_arn] : []
+
+        content {
+          test     = "StringEquals"
+          variable = "bedrock:InferenceProfileArn"
+          values   = [condition.value]
+        }
+      }
+    }
+  }
+}
+
+data "aws_region" "current" {}
